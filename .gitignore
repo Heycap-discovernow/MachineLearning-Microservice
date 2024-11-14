@@ -1,3 +1,5 @@
+.env
+
 # Archivos de Python
 __pycache__/
 *.py[cod]
