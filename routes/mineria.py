@@ -17,12 +17,12 @@ async def get_vistas_por_dia(db: AsyncSession = Depends(get_db)):
       COUNT(*) AS vistas, 
       DATE(created_at) AS fecha
     FROM views
-    WHERE place_id = 199
     GROUP BY DATE(created_at)
     ORDER BY fecha;
     """
     # Ejecutar la consulta de forma asíncrona
     result = await db.execute(text(query))
+    print(result)
     rows = result.fetchall()
     
     # Convertir el resultado a una lista de diccionarios
