@@ -1,2 +1,52 @@
+.env
+
+# Archivos de Python
 __pycache__/
+*.py[cod]
+*$py.class
+
+# Entornos virtuales
 venv/
+env/
+ENV/
+.venv/
+.ENV/
+
+# Archivos de distribución de paquetes
+*.egg
+*.egg-info
+dist/
+build/
+*.manifest
+*.spec
+
+# Archivos de configuración de IDEs y editores
+.vscode/
+.idea/
+
+# Archivos de configuración de PyCharm
+.pytest_cache/
+.tox/
+.nox/
+.coverage
+*.coveragerc
+*.hypothesis/
+*.tox.ini
+*.nox.ini
+*.coverage
+
+# Archivos de configuración de Jupyter
+.ipynb_checkpoints/
+
+# Archivos de sistema operativo
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Archivos de pruebas
+nosetests.xml
+coverage.xml
+*.coveragerc
+.vercel
