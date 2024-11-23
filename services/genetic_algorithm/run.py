@@ -2,8 +2,8 @@ from services.genetic_algorithm.Initialization import Initialization
 from services.genetic_algorithm.Optimization import Optimization
 
 @staticmethod
-def ag(start_poi, hours, generation=50):
-    init = Initialization( start_poi, hours)
+def ag_service(places, hours, quote, generation=40):
+    init = Initialization(places, hours, quote)
     opt = Optimization()
     bests_by_generation = []
 
@@ -26,4 +26,10 @@ def ag(start_poi, hours, generation=50):
 
         bests_by_generation.append(best_route)
     
-    return bests_by_generation
+    best_route = min(bests_by_generation, key=lambda x: x['fitness'])
+    best_route = {
+        'route': best_route['route'],
+        "total_time": round(best_route['time'] / 60, 2),
+        'total_cost': round(best_route['cost'], 2)
+    }
+    return best_route

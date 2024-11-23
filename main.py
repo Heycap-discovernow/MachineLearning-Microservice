@@ -1,7 +1,6 @@
 from fastapi import FastAPI
-from routes import routes as router
-import dtos.request.PlaceRequest as placeRequest
+from controllers.ItinerarieController import itinerary_router
 
 app = FastAPI()
 
-app.include_router(router, prefix="/itineraries")
+app.include_router(itinerary_router, prefix="/itineraries")
