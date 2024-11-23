@@ -1,56 +1,44 @@
-from geopy.geocoders import Nominatim # Para OpenStreetMap
+import math 
+import random
 
 class Model:
-    geolocator = Nominatim(user_agent="AG_routes")
-
-    @staticmethod
-    def get_poi_info(poi_id):
-        poi_info = Model.dataset.loc[Model.dataset['id_lugar'] == poi_id]
-        if not poi_info.empty:
-            poi_info = poi_info.iloc[0]
-            return poi_info['nombre'], poi_info['lat'], poi_info['lon']
-        else:
-            return None, None, None
-
-    @staticmethod
-    def get_parameters(id_origen, id_destino, transporte):
-        resultado = Model.dataset.loc[
-            (Model.dataset['id_origen'] == id_origen) & 
-            (Model.dataset['id_destino'] == id_destino) & 
-            (Model.dataset['transporte'] == transporte)
-        ]
-        
-        if not resultado.empty:
-            return {
-                'distancia': resultado['distancia'].values[0],
-                'tiempo_viaje': resultado['tiempo_viaje'].values[0],
-                'costo': resultado['costo'].values[0]
-            }
-        else:
-            print(f"Ruta no encontrada: origen={id_origen}, destino={id_destino}, transporte={transporte}")
-            return None
     
     @staticmethod
-    def get_distance(id_origen, id_destino): #Obtiene la distancia entre dos puntos de interes del conjunto de datos
-        if id_origen == id_destino:
-            return 0      
-        try:
-            return Model.dataset.loc[
-                (Model.dataset['id_origen'] == id_origen) &
-                (Model.dataset['id_destino'] == id_destino)
-            ]['distancia'].values[0]
-        except IndexError:
-            raise IndexError(f"No se encontró una distancia para los índices: {id_origen}, {id_destino}")
+    def get_parameters(origin, target, transport):
+        distance = Model.get_distance(origin, target)
+        travel_time = Model.calculate_travel_time(distance, transport)
+        travel_cost = Model.travel_cost(distance, transport, travel_time)
+        return {
+                'distance': distance,
+                'travel_time': travel_time,
+                'travel_cost': travel_cost
+        }
+        
+    @staticmethod
+    def get_distance(current_poi, next_poi): #Obtiene la distancia entre dos puntos usando la formula de Haversine
+        current_lat, current_long = float(current_poi[0]), float(current_poi[1])
+        next_lat, next_long = float(next_poi[0]), float(next_poi[1])
+        
+        R = 6371  # Radio de la Tierra en km
+        lat1, lon1 = math.radians(current_lat), math.radians(current_long)
+        lat2, lon2 = math.radians(next_lat), math.radians(next_long)
+        dlat = lat2 - lat1
+        dlon = lon2 - lon1
+        a = math.sin(dlat/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon/2)**2
+        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
+        distance = R * c
+        return round(distance, 5)
 
     @staticmethod
     def sort_by_proximity(route): #Ordena la ruta basandose en la proximidad geografica de los puntos de interes
         unique_route = Model.filter_route(route)
-
+        if len(unique_route) == 0:
+            raise ValueError("No pudimos encontrar una ruta con los parametros proporcionados, por favor incrementa un poco los valores o intenta de nuevo.")
         sorted_route = [unique_route[0]]  # Mantén el punto de inicio
         remaining = unique_route[1:]
         while remaining:
-            last_poi = sorted_route[-1]['id_destino'] # Selección del último punto de interés añadido. [-1] selecciona el último elemento de la lista porque los indices negativos cuentan desde el final.
-            next_poi = min(remaining, key=lambda x, last_poi=last_poi: Model.get_distance(last_poi, x['id_destino'])) # Calcula la distancia erntre last_poi y cada punto de interes restante, y selecciona el más cercano.
+            last_poi = sorted_route[-1]['target_coord'] # Selección del último punto de interés añadido. [-1] selecciona el último elemento de la lista porque los indices negativos cuentan desde el final.
+            next_poi = min(remaining, key=lambda x, last_poi=last_poi: Model.get_distance(last_poi, x['target_coord'])) # Calcula la distancia entre last_poi y cada punto de interes restante, y selecciona el más cercano.
             sorted_route.append(next_poi)
             remaining.remove(next_poi)
         return sorted_route # Esta implementación asegura que la ruta se optimiza en términos de distancia entre puntos consecutivos
@@ -60,16 +48,57 @@ class Model:
         seen = set()
         unique_route = []
         for segment in route:
-            if segment['id_destino'] not in seen:
+            if segment['target_coord'] not in seen:
                 unique_route.append(segment)
-                seen.add(segment['id_destino'])
+                seen.add(segment['target_coord'])
         
         return unique_route
 
     @staticmethod
-    def total_time(travel_time, origin_id):
-        poi_info = Model.dataset.loc[Model.dataset['id_lugar'] == origin_id]
-        if not poi_info.empty:
-            poi_info = poi_info.iloc[0]
-
-        return travel_time + poi_info['tiempo_visita']
+    def calculate_travel_time(distance, transport):
+        average_speeds = {
+            'car': 60,
+            'bike': 15,
+            'walk': 5,
+            'bus': 20
+        }
+        
+        speed = average_speeds.get(transport, 20)
+        time_in_hours = distance / speed
+        time_in_minutes = time_in_hours * 60
+        return round(time_in_minutes, 2)
+    
+    @staticmethod
+    def total_time(travel_time, visit_time):
+        return travel_time + visit_time
+    
+    @staticmethod
+    def cost_visit(range_cost):
+        range_cost = int(range_cost)
+        if (range_cost == 0):
+            return random.randrange(100, 500)
+        elif (range_cost == 1):
+            return random.randrange(500, 1000)
+        elif (range_cost == 2):
+            return random.randrange(1000, 3000)
+        elif (range_cost == 3):
+            return random.randrange(3000, 6000)
+        else:
+            return random.randrange(6000, 10000)
+    
+    @staticmethod
+    def travel_cost(distance, transport, travel_time):
+        if transport == 'car':
+            base_fee = 35
+            fee_km = 7
+            fee_min = 3.5
+            total_cost = base_fee + (distance * fee_km) + (travel_time * fee_min)
+            return total_cost 
+        elif transport == 'bus':
+            return 10
+        else:
+            return 0
+    
+    @staticmethod
+    def total_cost(travel_cost, cost_visit):
+        return travel_cost + cost_visit

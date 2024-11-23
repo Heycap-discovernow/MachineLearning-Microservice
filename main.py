@@ -1,12 +1,12 @@
 # main.py
 from fastapi import FastAPI
-from routes.routes import router as itineraries_router
 from routes.mineria import router as mineria_router
+from controllers.ItinerarieController import itinerary_router
 
 app = FastAPI()
 
 # Incluye los routers
-app.include_router(itineraries_router, prefix="/itineraries")
+app.include_router(itinerary_router, prefix="/itineraries")
 app.include_router(mineria_router, prefix="/ml")
 
 if __name__ == "__main__":
