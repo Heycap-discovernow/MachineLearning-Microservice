@@ -7,6 +7,7 @@ from datetime import date
 from pydantic import BaseModel
 import pandas as pd
 from statsmodels.tsa.holtwinters import ExponentialSmoothing
+from prophet import Prophet
 
 router = APIRouter()
 
@@ -57,19 +58,26 @@ async def get_vistas_por_dia(place_id: str, db: AsyncSession = Depends(get_db)):
     df['fecha'] = pd.to_datetime(df['fecha'])
     df.set_index('fecha', inplace=True)
     
-    # 4. Interpolación para manejar posibles días faltantes
-    df = df.asfreq('D')  # Asegura que las fechas sean diarias
-    df['vistas'] = df['vistas'].interpolate(method='time')
+
+    df_prophet = df.interpolate(method='time').copy()
+    df_prophet.reset_index(inplace=True)
+    df_prophet.rename(columns={'fecha': 'ds', 'vistas': 'y'}, inplace=True)
     
-    # 5. Ajustar el modelo Holt-Winters
-    model = ExponentialSmoothing(df['vistas'], trend='add', seasonal=None)
-    fit = model.fit()
     
-    # 6. Pronosticar para los próximos 3 días
-    forecast = fit.forecast(steps=3)
+    # 6. Ajustar el modelo Prophet
+    model = Prophet(daily_seasonality=True)
+    model.fit(df_prophet)
+    
+    # 7. Crear un DataFrame para los próximos 3 días
+    future = model.make_future_dataframe(periods=3)
+    
+    # 8. Pronosticar para los próximos 3 días
+    forecast = model.predict(future)
+    forecast = forecast[['ds', 'yhat']].tail(3)
+    forecast.set_index('ds', inplace=True)
     
     # 7. Convertir el pronóstico a un formato compatible con la respuesta
-    predicted_rows = [{"vistas": int(v), "fecha": date} for date, v in forecast.items()]
+    predicted_rows = [{"vistas": int(row['yhat']), "fecha": date} for date, row in forecast.iterrows()]
     
     # 8. Combinar los datos históricos con el pronóstico
     historical_data = [{"vistas": row.vistas, "fecha": row.fecha} for row in rows]
