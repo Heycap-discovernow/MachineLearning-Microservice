@@ -1,5 +1,6 @@
 from services.genetic_algorithm.Initialization import Initialization
 from services.genetic_algorithm.Optimization import Optimization
+from services.genetic_algorithm.Modeling import Model as md
 
 @staticmethod
 def ag_service(places, hours, quote, generation=40):
@@ -27,9 +28,17 @@ def ag_service(places, hours, quote, generation=40):
         bests_by_generation.append(best_route)
     
     best_route = min(bests_by_generation, key=lambda x: x['fitness'])
-    best_route = {
+    
+    coordinates = []
+    for segment in best_route['route']:
+        coordinates.append(segment['origin_coord'])
+    coordinates.append(best_route['route'][-1]['target_coord'])  # Agregar la última coordenada de destino
+    polyline = md.get_polyline(coordinates)
+    
+    best_plan = {
         'route': best_route['route'],
-        "total_time": round(best_route['time'] / 60, 2),
-        'total_cost': round(best_route['cost'], 2)
+        'polyline': polyline,
+        'total_cost': round(best_route['cost'], 2),
+        "total_time": round(best_route['time'] / 60, 2)
     }
-    return best_route
+    return best_plan

@@ -1,8 +1,14 @@
 import math 
 import random
+import os
+import requests
+import polyline
+from dotenv import load_dotenv
 
-class Model:
-    
+load_dotenv()
+
+class Model:    
+    api_key = os.getenv("API_KEY")
     @staticmethod
     def get_parameters(origin, target, transport):
         distance = Model.get_distance(origin, target)
@@ -76,15 +82,15 @@ class Model:
     def cost_visit(range_cost):
         range_cost = int(range_cost)
         if (range_cost == 0):
-            return random.randrange(100, 500)
+            return random.randrange(50, 250)
         elif (range_cost == 1):
-            return random.randrange(500, 1000)
+            return random.randrange(250, 450)
         elif (range_cost == 2):
-            return random.randrange(1000, 3000)
+            return random.randrange(450, 650)
         elif (range_cost == 3):
-            return random.randrange(3000, 6000)
+            return random.randrange(650, 1000)
         else:
-            return random.randrange(6000, 10000)
+            return random.randrange(1000, 2000)
     
     @staticmethod
     def travel_cost(distance, transport, travel_time):
@@ -102,3 +108,48 @@ class Model:
     @staticmethod
     def total_cost(travel_cost, cost_visit):
         return travel_cost + cost_visit
+    
+    @staticmethod
+    def get_polyline(coordinates):
+        url = "https://routes.googleapis.com/directions/v2:computeRoutes"
+        headers = {
+            "Content-Type": "application/json",
+            "X-Goog-Api-Key": Model.api_key,
+            "X-Goog-FieldMask": "routes.duration,routes.distanceMeters,routes.polyline.encodedPolyline"
+        }
+
+        origin = {"location": {"latLng": {"latitude": coordinates[0][0], "longitude": coordinates[0][1]}}}
+        destination = {"location": {"latLng": {"latitude": coordinates[-1][0], "longitude": coordinates[-1][1]}}}
+        intermediates = [{"location": {"latLng": {"latitude": lat, "longitude": lng}}} for lat, lng in coordinates[1:-1]]
+
+        payload = {
+            "origin": origin,
+            "destination": destination,
+            "intermediates": intermediates,
+            "travelMode": "DRIVE",
+            "routingPreference": "TRAFFIC_AWARE_OPTIMAL",
+            "polylineQuality": "HIGH_QUALITY",
+            "computeAlternativeRoutes": False,
+            "routeModifiers": {
+                "avoidTolls": False,
+                "avoidHighways": False,
+                "avoidFerries": False
+            },
+            "languageCode": "en-US"
+        }
+
+        response = requests.post(url, json=payload, headers=headers)
+        
+        if response.status_code == 200:
+            data = response.json()
+            if "routes" in data and len(data["routes"]) > 0:
+                route = data["routes"][0]
+                polyline_encoded = route["polyline"]["encodedPolyline"]  # Polilínea codificada
+                
+                return polyline_encoded
+            else:
+                print("Error: La respuesta no contiene las rutas esperadas.")
+                return None
+        else:
+            print("Error al obtener la ruta:", response.status_code, response.text)
+            return None
